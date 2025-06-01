@@ -1,0 +1,73 @@
+read_csv_prices(filename) := block(
+    [s, line, lines, prices, cols, col_index, price_str, price_val],
+    s: openr(filename),
+    lines: [],
+    while not endfilep(s) do (
+        line: readline(s),
+        lines: endcons(line, lines)
+    ),
+    close(s),
+    cols: split(lines[1], ","),
+    col_index: position("Price", cols) + 1,
+    if col_index = 0 then (
+        print("Стовпець 'Price' не знайдено."), return([])
+    ),
+    prices: [],
+    for i:2 thru length(lines) do (
+        cols: split(lines[i], ","),
+        price_str: subst(",", "", cols[col_index]),
+        price_val: parse_string(price_str),
+        if numberp(price_val) then
+            prices: endcons(price_val, prices)
+    ),
+    return(prices)
+)$
+
+generate_alphabet(n) := makelist(charlist("A")[1] + i - 1, i, 1, n)$
+
+get_uniform_breaks(series, alpha_size) := block(
+    [minval, maxval, step, breaks],
+    minval: lmin(series),
+    maxval: lmax(series),
+    step: (maxval - minval)/alpha_size,
+    breaks: makelist(minval + i*step, i, 0, alpha_size),
+    return(breaks)
+)$
+
+map_to_alphabet(series, breaks, alphabet) := block(
+    [result: []],
+    for val in series do (
+        for i:1 thru length(breaks)-1 do (
+            if val >= breaks[i] and val <= breaks[i+1] then (
+                result: endcons(alphabet[i], result),
+                return()
+            )
+        )
+    ),
+    return(result)
+)$
+
+build_transition_matrix(series, alphabet) := block(
+    [n, matrix],
+    n: length(alphabet),
+    matrix: genmatrix(lambda([i,j], 0), n, n),
+    for k:1 thru length(series)-1 do (
+        i: position(series[k], alphabet)+1,
+        j: position(series[k+1], alphabet)+1,
+        matrix[i][j]: matrix[i][j] + 1
+    ),
+    return(matrix)
+)$
+
+main(filename, alpha_size) := block(
+    [series, alphabet, breaks, ling_series, matrix],
+    series: read_csv_prices(filename),
+    if length(series) = 0 then return("Немає даних."),
+    alphabet: map(char, generate_alphabet(alpha_size)),
+    breaks: get_uniform_breaks(series, alpha_size),
+    ling_series: map_to_alphabet(series, breaks, alphabet),
+    print("Лінгвістичний ряд: ", ling_series),
+    matrix: build_transition_matrix(ling_series, alphabet),
+    print("Матриця передування:"),
+    matrix
+)$
